@@ -5,11 +5,12 @@ services:
     build:
       context: ./mongo
       dockerfile: Dockerfile
+    restart: always
     environment:
       - MONGO_INITDB_ROOT_USERNAME=root
       - MONGO_INITDB_ROOT_PASSWORD=root
     volumes:
-      - mongo:/bitnami/mongodb
+      - .lumos/mongo:/bitnami/mongodb
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
     networks:
@@ -43,7 +44,7 @@ services:
       - lumous-network
 
   minio:
-    image: 'minio/minio:RELEASE.2024-08-03T04-33-23Z'
+    image: 'minio/minio:latest'
     ports:
       - '9991:9000'
       - '9990:9990'
@@ -51,7 +52,8 @@ services:
       MINIO_ROOT_USER: 'root'
       MINIO_ROOT_PASSWORD: 'password'
     volumes:
-      - minio:/data/minio:z
+      - .lumos/minio:/data/minio:z
+    restart: always
     command: >
       minio server /data/minio --console-address ":9990"
     healthcheck:
@@ -90,16 +92,18 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    restart: always
     ports:
       - '2181:2181'
     networks:
       - lumous-network
     volumes:
-      - zookeeper:/var/lib/zookeeper
+      - .lumos/zookeeper:/var/lib/zookeeper
 
   kafka:
     container_name: kafka
     image: confluentinc/cp-kafka:7.7.0
+    restart: always
     depends_on:
       - zookeeper
     ports:
@@ -130,16 +134,16 @@ services:
       timeout: 10s
       retries: 3
     volumes:
-      - kafka:/var/lib/kafka
+      - .lumos/kafka:/var/lib/kafka
 
-  hivemq:
-    image: hivemq/hivemq4
-    ports:
-      - 8080:8080
-      - 8000:8000
-      - 1883:1883
-    networks:
-      - lumous-network
+  # hivemq:
+  #   image: hivemq/hivemq4
+  #   ports:
+  #     - 8080:8080
+  #     - 8000:8000
+  #     - 1883:1883
+  #   networks:
+  #     - lumous-network
 
   lhive-mqtt-connector:
     container_name: 'lhive-mqtt-connector'
@@ -149,6 +153,7 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    restart: always
     environment:
       MQTT_TOPIC: LACC001/#
       #  use local mqtt broker
@@ -173,6 +178,7 @@ services:
         condition: service_started
       kafka:
         condition: service_healthy
+    restart: always
     # healthcheck:
     #   test: ["CMD-SHELL", "curl -f http://localhost:8089/actuator/health || exit 1"]
     #   interval: 30s
@@ -181,7 +187,7 @@ services:
     environment:
       MONGO_DB_URI: mongodb://root:root@mongo:27017/lhivedb?authMechanism=SCRAM-SHA-256&authSource=admin&replicaSet=mongo
       KAFKA_URL: kafka:9092
-      PYTHON_SERVICE_API: lhive-ai:9093/acceData/generate
+      PYTHON_SERVICE_API:  http://lhive-ai:9093/acceData/generate
     networks:
       - lumous-network
 
@@ -197,10 +203,12 @@ services:
         condition: service_started
     ports:
       - "9093:9093"
+    restart: always
     environment:
       MONGO_DB_URI: mongodb://root:root@mongo:27017/lhivedb?authMechanism=SCRAM-SHA-256&authSource=admin&replicaSet=mongo
+      DB_NAME: lhivedb
     volumes:
-      - shared-data:/app/saved_outputs:z
+      - .lumos/shared-data:/app/saved_outputs:z
     networks:
       - lumous-network
 
@@ -214,6 +222,7 @@ services:
         condition: service_healthy
       lhive-ai:
         condition: service_started
+    restart: always
     environment:
       KAFKA_URL: kafka:9092
       DB_URL: mongodb://root:root@mongo:27017/lhivedb?authMechanism=SCRAM-SHA-256&authSource=admin&replicaSet=mongo
@@ -223,7 +232,7 @@ services:
       OUTPUT_COLLECTION_NAME: SensorAiOutput
       KHIVE_AI_PROJECT_PATH: /app/
     volumes:
-      - shared-data:/app/saved_outputs:z
+      - .lumos/shared-data:/app/saved_outputs:z
     networks:
       - lumous-network
 
@@ -240,13 +249,15 @@ services:
       MONGO_DB_URI: mongodb://root:root@mongo:27017/lhivedb?authMechanism=SCRAM-SHA-256&authSource=admin&replicaSet=mongo
       KHIVE_AI_DIR_PATH: /app/
     volumes:
-      - shared-data:/app/saved_outputs:z
+      - .lumos/shared-data:/app/saved_outputs:z
+    restart: always
     networks:
       - lumous-network
 
   lhive-admin:
     container_name: lhive-admin
     image: lumoscnc24/lhive-admin:latest
+    restart: always
     environment:
       - NODE_ENV=production
       - LUMOS_APP_URL=localhost
@@ -268,6 +279,7 @@ services:
       - 9082:9082
 
   lumos-frontend:
+    restart: always
     container_name: lumos-frontend
     image: lumoscnc24/lumos-frontend:latest
     ports:
@@ -275,6 +287,7 @@ services:
 
   lform:
     container_name: lform
+    restart: always
     image: lumoscnc24/lform:latest
     depends_on:
       minio_mc:
@@ -292,10 +305,10 @@ networks:
   lumous-network:
 
 
-volumes:
-  shared-data:
-    driver: local
-  minio:
-  mongo:
-  kafka:
-  zookeeper:
+# volumes:
+#   shared-data:
+#     driver: local
+#   minio:
+#   mongo:
+#   kafka:
+#   zookeeper:
