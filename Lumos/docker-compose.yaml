@@ -10,7 +10,8 @@ services:
       - MONGO_INITDB_ROOT_USERNAME=root
       - MONGO_INITDB_ROOT_PASSWORD=root
     volumes:
-      - .lumos/mongo:/bitnami/mongodb
+      - .lumos/mongo/configdb:/data/configdb
+      - .lumos/mongo/db:/data/db
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
     networks:
@@ -38,8 +39,10 @@ services:
     environment:
       ME_CONFIG_MONGODB_ADMINUSERNAME: root
       ME_CONFIG_MONGODB_ADMINPASSWORD: root
+      ME_CONFIG_BASICAUTH_USERNAME: lumos
+      ME_CONFIG_BASICAUTH_PASSWORD: Ab*123456
       ME_CONFIG_MONGODB_URL: mongodb://root:root@mongo:27017/lhivedb?authMechanism=SCRAM-SHA-256&authSource=admin&replicaSet=mongo
-      ME_CONFIG_BASICAUTH: false
+      ME_CONFIG_BASICAUTH: true
     networks:
       - lumous-network
 
@@ -97,8 +100,9 @@ services:
       - '2181:2181'
     networks:
       - lumous-network
-    volumes:
-      - .lumos/zookeeper:/var/lib/zookeeper
+    # volumes:
+    #   - .lumos/zookeeper/etc/kafka:/etc/kafka
+    #   - .lumos/zookeeper/var/log/kafka:/var/log/kafka
 
   kafka:
     container_name: kafka
@@ -133,8 +137,10 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    volumes:
-      - .lumos/kafka:/var/lib/kafka
+    # command: rm /var/lib/kafka/data/meta.properties
+    # volumes:
+    #   - .lumos/kafka/data:/var/lib/kafka/data
+    #   - .lumos/kafka/log:/var/log/kafka
 
   # hivemq:
   #   image: hivemq/hivemq4
